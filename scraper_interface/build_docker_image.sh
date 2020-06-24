@@ -1,0 +1,1 @@
+docker build -t scraper_interface_image .
