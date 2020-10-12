@@ -1,6 +1,6 @@
+
 import logging
 import json
-import pymongo
 
 import urllib
 from urllib.request import Request, urlopen
@@ -8,9 +8,6 @@ from urllib.request import Request, urlopen
 import azure.functions as func
 
 from bs4 import BeautifulSoup
-
-save = False
-uri = "mongodb://scrapi-db-client:04eVytMwKXPIwQLBEu2w0NxtRZn3IJVentyJiNcacHwtSmucfufY7mnqfnGf9lRbFjbhtzKIQSBOCtstLcHkxA==@scrapi-db-client.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@scrapi-db-client@&retrywrites=false"
 
 def Soup(url):
 	# Mozilla/5.0
@@ -22,18 +19,10 @@ def Soup(url):
     page = "<div></div>"
     try:
         page = urlopen(req)
-        print(page.getcode())
+        logging.info(page.getcode());
     except urllib.error.URLError as err:
-        print(err, url)
+        logging.info(err + ": " + url);
     return BeautifulSoup(page, 'html.parser')
-
-def get_callback(callback):
-    if callback == "get_text":
-        return get_text
-    elif callback == "get_content":
-        return get_attr("content")
-    elif callback == "get_href":
-        return get_attr("href")
 
 def get_text(q : BeautifulSoup):
 	if len(q) > 1:
@@ -53,6 +42,16 @@ def get_attr(attr):
 		return q[0][attr]
 	return decorator
 
+def get_callback(callback):
+    if callback == "get_text":
+        return get_text
+    elif callback == "get_content":
+        return get_attr("content")
+    elif callback == "get_href":
+        return get_attr("href")
+    elif callback == "get_src":
+        return get_attr("src")
+
 class Profile:
 	def __init__(self, **args):
 		self.hooks = args
@@ -70,7 +69,7 @@ class Profile:
 		for hookName, rule in self.hooks.items():
 			try:
 				callback = rule["callback"]
-				val = callback(soup.select(rule["selector"]))
+				val = callback(soup.select(rule["selector"])) # .replace(r"\n", "").replace(r"\x", " ")
 				ret.update({hookName : val})
 				setattr(self, hookName, val)
 			except IndexError:
@@ -93,29 +92,26 @@ def scrape(name, url, hooks):
 
     if isinstance(hooks, list):
         h = {}
-        for name, hook in hooks:
-            h[name] = {
-                'selector': hook['callback'],
-                'callback': get_callback(hook['callback'])
+        logging.info("is_list");
+        for hook in hooks:
+            logging.info("h: " + hook["name"] + "," + str(hook["hook"]))
+            h[hook["name"]] = {
+                'selector': hook["hook"]['selector'],
+                'callback': get_callback(hook["hook"]['callback'])
             }
-            logging.info("h: " + name + "," + str(hook))
         hooks = h
     else:
-        for name, rule in hooks.items():
-            hooks[name]['callback'] = get_callback(rule['callback'])
-            logging.info("h: " + name + "," + str(rule))
+        logging.info("is_dict")
+        for n, rule in hooks.items():
+            logging.info("h: " + n + "," + str(rule))
+            hooks[n]['callback'] = get_callback(rule['callback'])
 
     logging.info("hooks: " + str(hooks))
     
-    item = {
+    return {
         "name": name,
         "data": Profile(**hooks).digest(Soup(url))
         }
-
-    if save:
-        pymongo.MongoClient(uri).scrapi.data.insert(item)
-
-    return item
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('ScrAPI HTTP trigger function processed a request.')
@@ -127,16 +123,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         req_json = json.loads(req_body)
 
-        name = req_json['name']# req.params.get('name')
-        url = req_json['url']# req.params.get('url')
-        hooks = req_json['hooks']# req.params.get('hooks')
-
-        # if req_json['save']:
-        #     save = True
-
         logging.info("pre-scrape: " + str(req_json))
-        response = scrape(name, url, hooks)
+        result = scrape(req_json['name'], req_json['url'], req_json['hooks'])
 
-        return func.HttpResponse(str(response), status_code=200)
-    except ValueError:
-        return func.HttpResponse("error")
+        return func.HttpResponse(str(result), status_code=200)
+    except Exception as e:
+        return func.HttpResponse("error:" + str(dict(e)))

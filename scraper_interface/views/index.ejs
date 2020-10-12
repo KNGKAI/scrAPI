@@ -9,18 +9,19 @@
     <a href="/data">Show data</a><br><br>
     <h2>Scraper</h2>
     <form action="/test" method="post">
-      Name: <input type="text" name="name" placeholder="Enter Url"><br>
-      URL: <input type="text" name="url" placeholder="Enter Url"><br>
+      Name: <input type="text" name="name" value="random_wiki_page"><br>
+      URL: <input type="text" name="url"value="https://en.wikipedia.org/wiki/Special:Random"><br>
       <h3>Hooks:</h3>
       <div id="hooks">
         <li id="hook">
-          Name:<input type="text" name="names">
-          Selector:<input type="text" name="selectors">
+          Name:<input type="text" name="names" value="title">
+          Selector:<input type="text" name="selectors" value="h1">
           Callback:
           <select name="callbacks">
+            <option value="get_content">Get Content</option>
             <option value="get_text">Get Text</option>
             <option value="get_href">Get HREF</option>
-            <option value="get_content">Get Content</option>
+            <option value="get_src">Get SRC</option>
           </select> 
         </li>
       </div>

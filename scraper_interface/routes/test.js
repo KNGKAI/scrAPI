@@ -3,8 +3,10 @@ var request = require('request');
 var express = require('express');
 var router = express.Router();
 
-/* GET home page. */
 router.post('/', function(req, res, next) {
+  console.log("testing.....");
+  console.log(req.body);
+
   var name = req.body.name;
   var url = req.body.url;
   var hooks = [];
@@ -12,29 +14,25 @@ router.post('/', function(req, res, next) {
   var names = req.body.names;
   var selectors = req.body.selectors;
   var callbacks = req.body.callbacks;
-  var len = req.body.names.length;
-
-  console.log(names);
-  console.log(selectors);
-  console.log(callbacks);
   
   if (names instanceof Array) {
-    for (let i = 0; i < len; i++) {
-      var n = names[i];
+    for (let i = 0; i < req.body.names.length; i++) {
       hooks.push({
-        n : {
+        "name": names[i],
+        "hook": {
           "selector": selectors[i],
           "callback": callbacks[i]
         }
       });
     }
   } else {
-    hooks = {
-      names : {
+    hooks = [{
+      "name": names,
+      "hook": {
         "selector": selectors,
         "callback": callbacks
       }
-    }
+    }];
   }
 
   var json = JSON.stringify({
@@ -55,11 +53,10 @@ router.post('/', function(req, res, next) {
   
   request(options,
     function(err, remoteRes, remoteBody) {
-      if (err) { return res.status(500).end("redirect err"); }
-        //res.writeHead(json); // copy all headers from remoteResponse
-        // console.log(remoteRes);
-        // console.log(remoteBody);
-        res.send(remoteBody);
+      if (err) {
+        return remoteRes.status(500).end("remote_error");
+      }
+      res.send({ result: remoteBody });
     }
   );
 });
